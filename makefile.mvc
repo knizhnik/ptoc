@@ -1,0 +1,128 @@
+# Constantin Knizhnik
+# Moscow Software Center
+# Pascal to C/C++ compiler.
+#
+
+DEFINES = -DYY_NO_UNISTD_H
+CC = cl
+# Debug
+CFLAGS=-c -Zi -W3 $(DEFINES)
+# Optimize
+#CFLAGS=-c -Ox -Zi -W3 -nologo $(DEFINES)
+LD = cl -nologo
+LDFLAGS = -Zi
+#LDFLAGS =
+AR = lib
+
+YACC =		bison -d -p zz
+LEX =		flex -i -F -8
+
+#
+# Target.
+#
+
+all: ptoc.exe cganal.exe ptoc.lib winbgi.lib
+
+#
+# File lists.
+#
+
+INCS = main.h token.h token.dpp nmtbl.h bring.h tpexpr.h trnod.h util.h parser.h
+
+SRCS = trnod.cxx nmtbl.cxx bring.cxx tpexpr.cxx util.cxx main.cxx parser.cxx lex.cxx token.cxx dprintf.cxx
+
+OBJS = trnod.obj nmtbl.obj bring.obj tpexpr.obj util.obj main.obj parser.obj lex.obj token.obj dprintf.obj
+
+LIB_SRCS = set.c paslib.c io.c
+
+LIB_OBJS = set.obj paslib.obj io.obj
+
+trnod.obj: trnod.cxx $(INCS)
+        $(CC) $(CFLAGS) trnod.cxx
+
+nmtbl.obj: nmtbl.cxx $(INCS)
+        $(CC) $(CFLAGS) nmtbl.cxx
+
+bring.obj: bring.cxx $(INCS)
+        $(CC) $(CFLAGS) bring.cxx
+
+tpexpr.obj: tpexpr.cxx $(INCS)
+        $(CC) $(CFLAGS) tpexpr.cxx
+
+util.obj: util.cxx $(INCS)
+        $(CC) $(CFLAGS) util.cxx
+
+main.obj: main.cxx $(INCS)
+        $(CC) $(CFLAGS) main.cxx
+
+parser.obj: parser.cxx $(INCS)
+        $(CC) $(CFLAGS) parser.cxx
+
+lex.obj: lex.cxx $(INCS)
+        $(CC) $(CFLAGS) lex.cxx
+
+token.obj: token.cxx $(INCS)
+        $(CC) $(CFLAGS) token.cxx
+
+dprintf.obj: dprintf.cxx $(INCS)
+        $(CC) $(CFLAGS) dprintf.cxx
+
+set.obj: set.c ptoc.h
+        $(CC) $(CFLAGS) set.c
+
+paslib.obj: paslib.c ptoc.h
+        $(CC) $(CFLAGS) paslib.c
+
+io.obj: io.c ptoc.h
+        $(CC) $(CFLAGS) io.c
+
+analyse.obj: analyse.cxx main.h
+        $(CC) $(CFLAGS) analyse.cxx
+
+parser.cxx parser.h : parser.y
+		SET BISON_SIMPLE=\bin\bison.simple
+		SET BISON_HAIRY=\bin\bison.hairy
+		$(YACC) parser.y
+		-@del parser.cxx
+		-@del parser.h
+		rename parser.tab.c parser.cxx
+		rename parser.tab.h parser.h
+
+lex.cxx : lex.l
+		$(LEX) lex.l
+		-@del lex.cxx
+		rename lexyy.c lex.cxx
+
+
+ptoc.exe: $(OBJS)
+        $(LD) $(LDFLAGS) /Feptoc.exe $(OBJS) $(LDLIB)
+
+cganal.exe: analyse.obj
+        $(LD) $(LDFLAGS) /Fecganal.exe analyse.obj $(LDLIB)
+
+ptoc.lib: $(LIB_OBJS)
+        -@del ptoc.lib
+        $(AR) $(AROPT) /OUT:ptoc.lib $(LIB_OBJS)
+
+winbgi.lib:
+	cd WinBGI
+	nmake -f makefile.mvc
+	cd ..
+
+clean:
+        -del ptoc,cganal,*.a,*.obj,*.ilk,*.zip,*.*~,*~,ptoc.pdb,cganal.pdb
+        cd examples
+        nmake -f makefile.mvc clean
+        cd ..
+        cd WinBGI
+        nmake -f makefile.mvc clean
+        cd ..
+
+zip: clean
+	cd ..
+	-del ptoc.zip
+	zip -r ptoc.zip ptoc
+
+copyzip: zip
+	copy ptoc.zip a:
+

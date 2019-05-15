@@ -1,0 +1,1251 @@
+<HTML>
+<HEAD>
+<TITLE>Pascal to C/C++ converter</TITLE>
+<UL>
+<LI><A HREF = "#about">About PtoC</A>
+<LI><A HREF = "#installation">PtoC installation</A>
+<LI><A HREF = "#paslib">Pascal runtime library emulation</A>
+  <OL>
+  <LI><A HREF = "#paslib.arrays">Arrays</A>
+  <LI><A HREF = "#paslib.sets">Sets</A>
+  <LI><A HREF = "#paslib.math">Mathematical functions</A>
+  <LI><A HREF = "#paslib.io">Input/Output</A>
+  </OL>
+<LI><A HREF = "#winbgi">BGI emulation</A>
+<LI><A HREF = "#structure">Structure of converter</A>
+<LI><A HREF = "#cganal">Nested functions and call graph analysis</A>
+<LI><A HREF = "#name conflicts">Resolving name conflicts</A>
+<LI><A HREF = "#C parameters">Passing parameters in C</A>
+<LI><A HREF = "#C++ parameters">Passing parameters in C++</A>
+<LI><A HREF = "#C functions">Calling of C functions</A>
+<LI><A HREF = "#assignment">Array assignments</A>
+<LI><A HREF = "#string">Conversion of Turbo Pascal strings</A>
+<LI><A HREF = "#porting">Some porting problems</A>
+  <OL>
+  <LI><A HREF = "#integer">Representation of integer types</A>
+  <LI><A HREF = "#set">Implementation of Pascal sets</A>
+  <LI><A HREF = "#enum">Enumeration types</A>
+  </OL>
+<LI><A HREF = "#style">Style of converted sources</A>
+<LI><A HREF = "#modules">Includes in ANSII Pascal</A>
+<LI><A HREF = "#options">PtoC options</A>
+<LI><A HREF = "#bugs">Known bugs</A>
+<LI><A HREF = "#distribution">PtoC distribution</A>
+</UL>
+
+<BODY>
+<HR>
+<H2><A NAME = "about">About PtoC</A></H2>
+
+This is yet another Pascal to C/C++ converter. The primary idea of this
+converter is to produce readable and supportable code which
+preserves style of original code as far as possible.<P>
+
+Converter recognizes Pascal dialects which are compatible with 
+Turbo Pascal 4.0/5.0 and ISO Pascal standard - IEC 7185:1990(E) 
+(including conformant arrays). At this moment it was tested 
+with Turbo Pascal, Oregon Pascal, Sun Pascal and HP Pascal.<P>
+
+Converter can produce both C++ and C output. Using of C++ language allows 
+to encapsulate some Pascal types and constructions into C++ classes.
+So mapping between Pascal and C++ becomes more direct 
+then between Pascal and C. I use C++ templates to implement Pascal arrays 
+and files. Special template classes are used for conformant arrays. 
+C++ like streams are used to implement Pascal IO routines. 
+The same runtime library is used both for C and C++.<P>
+
+Now PtoC recognizes Turbo Pascal's extensions, such as units, 
+strings, some special types and operations. Turbo Pascal extensions are
+supported only for C++ language.<P>
+
+At this moment PtoC successfully converts more than 400,000 lines
+of Oregon Pascal to C (from RSX to OpenVMS). To test C++ translation and
+conversion of Turbo Pascal extensions I convert BGIDEMO.PAS and LISTER.PAS
+files from Turbo Pascal distribution and also convert some
+numeric programs written on Turbo Pascal by my friends.
+To check quality of conversion please look in file  
+<A HREF = "examples/bgidemo.cxx">bgidemo.cxx</A> which was produces from
+original Borland <HREF = "examples/bgidemo.cxx">bgidemo.pas</A> without
+any manual changes. Moreover it is possible to compile it, link with
+WinBGI library and run it under Windows or X-Windows.<P>
+
+
+<H2><A NAME = "installation">PtoC installation</A></H2>
+
+To build PtoC just try <CODE>make</CODE>. Converter consists of two
+executable files: <CODE>ptoc</CODE> - converter itself and 
+<CODE>cganal</CODE> - analyzer of call graph, runtime library 
+<CODE>libptoc.a</CODE>, configuration file for converter <CODE>ptoc.cfg</CODE>,
+Pascal header for converter <CODE>ptoc.pas</CODE>
+(<CODE>tptoc.pas</CODE> for Turbo Pascal) and include file for all converted 
+sources <CODE>ptoc.h</CODE>. To run converter you should only specify path to 
+directory with <CODE>ptoc</CODE> and <CODE>cganal</CODE>. To compile and link 
+converted files you should specify for compiler and linker path to header 
+file <CODE>ptoc.h</CODE> and library <CODE>libptoc.a</CODE>.<P> 
+   
+I compile PtoC at Unix with GCC or CXX (Digital C++ compiler).
+I hope that many other C++ compilers also can do it.
+In MS-Windows I use Microsoft Visual C++ 5.0. You should
+either explicitly specify name of makefile: <CODE>nmake -f makefile.mvc</CODE>
+or use <CODE>make.bat</CODE> which do exactly the same.
+Also makefile for Borland C++ <CODE>makefile.bcc</CODE> is prepared.
+To invoke Borland linker issue command <CODE>make.exe -f makefile.bcc</CODE>
+(<CODE>.exe</CODE> extension is significant, otherwise <CODE>make.bat</CODE>
+will be executed)<P>
+
+I have used converter in following way: 
+
+<PRE>
+rm */*.[ch] call.grp
+for name in */*.pas
+do
+$(PTOC_DIR)ptoc -I include -h -in $name -c -analyze -intset -init -unsigned 
+done
+$(PTOC_DIR)cganal
+</PRE>
+
+In directory <CODE>examples</CODE> there are several Pascal files and
+makefile which converts and compiles this files.  
+Examples will be build also by issuing <CODE>make</CODE> command.
+You can look in this makefile at the examples of using PTOC
+and compiling converted code. 
+To compile sources produced from Turbo Pascal files, 
+do not forget to specify <CODE>-DTURBO_PASCAL</CODE> option.<P>
+
+Directory WinBGI contains source and header file for 
+BGI emulator for MS-Windows as well as makefile for Microsoft Visual C++
+(makefile.mvc) and Borland C++ (makefile.bcc) to build this library. 
+Directory Xbgi contains sources of BGI emulator for X-Windows.<P>
+
+Directory "vms" contains VMS specific versions of Pascal 
+runtime library emulation module "io.c".<P>
+
+If you want to make some changes in scanner or parser you need
+GNU bison and flex. For MS-Windows you can download this tools
+for example from 
+<A HREF="ftp.keme.co.uk/pub/winsite-mirror/win95/programr/flexbison.zip">
+flexbison.zip</A>.
+File produced by GNU flex contains reference to <CODE>unistd.h</CODE>. 
+At Windows you can either remove this reference or create file 
+with this name.<P>
+
+
+
+<H2><A NAME = "paslib">Pascal runtime library emulation</A></H2>
+
+<H3><A NAME = "paslib.arrays">Arrays</A></H3>
+
+All Pascal arrays in C are stored as zero based (first element has 
+offset 0). Low value of Pascal array bounds is subtracted from index 
+expression. When array is passed to conformant array parameter or 
+to input/output functions Pascal array bounds are passed before array 
+pointer. Low bound is always passed as it was mentioned in Pascal 
+array definition (symbolic constant or integer literal).
+High bound is calculated depending on value of low bound (if it is
+explicit constant) and whether variable is formal parameter. 
+if variable is not formal parameter and low bound is either 0 or 1
+macro <CODE>items(x)</CODE> is used to calculate high array bound: 
+
+<PRE>
+    #define items(x) (sizeof(x)/sizeof(*(x)))
+
+      procedure foo(a : array [l1..h1,l2..h2:integer] of char); external;
+      var a : array [1..10,-10..10] of char; 
+      begin foo(a); end;    
+
+    ==>
+
+      foo(const int l1, const int h2, const int l2, const int h2,
+          char* arr);
+      char a[10][21];
+      { foo(1, items(a), -10, items(*a), *a); }
+</PRE>  
+
+
+If left operand is not formal parameter and hence 'sizeof' operation
+can be used to obtain array size two macros are used to copy and 
+compare array:
+
+<PRE>
+      #define arrcmp(a,b) memcmp(a, b, sizeof(a))
+      #define arrcpy(a,b) memcpy(a, b, sizeof(a))
+</PRE>
+
+If left operand is formal parameter sizeof operator is applied to it's
+type: 
+        
+
+<PRE>   
+      foo(str5 s) { 
+         memcpy(s, "12345", sizeof(str5));
+      }
+</PRE>
+
+When string is passed as actual parameter for conformant array macro
+<CODE>array(s)</CODE> is used to calculate bounds of string: 
+
+<PRE>
+      #define array(s)  1, sizeof(s)-1, (s)  
+</PRE>
+    
+PtoC provides special type <CODE>zero_terminated_string</CODE>
+for passing zero terminated strings to C functions.
+Consider for example the following definition of function:
+
+<PRE>
+      function putenv(s : zero_terminated_string); external;
+</PRE>
+
+This function can be called in the following way:
+
+<PRE>
+    procedure foo(a : array [1..10] of char);
+    begin
+      putenv('VERSION=1');
+      putenv(a);
+    end;
+
+==>
+
+    void foo(array<1,10,char> a) 
+    { 
+      putenv("VERSION=1");
+      putenv(lpsz(a));
+    }
+</PRE>
+     
+Function <CODE>lpsz(a)</CODE> converts array to zero terminated string.
+This function use static circular buffers for coping array elements
+to it and appending '\0' symbols at the end.<P>
+
+
+In C++ arrays are implemented by following template C++ classes:<P>
+
+<DL>
+<DT><CODE>array&lt;low_bound, high_bound, type&gt;</CODE><DD>
+One dimensional array with fixed bounds.
+
+<DT><CODE>conf_array&lt;type&gt;</CODE><DD>
+Conformant array. 
+for more details.
+
+<DT><CODE>matrix&lt;low_1, high_1, low_2, high_2, type&gt;</CODE><DD>
+Two dimensional array with fixed bounds.
+
+<DT><CODE>conf_matrix&lt;type&gt;</CODE><DD>
+Conformant two dimensional array.
+</DL>
+
+See <A HREF = "#C++ parameters">Passing parameters in C++</A> for
+more details about passing of array parameters.<P>
+
+Methods of classes <CODE>array, conf_array, matrix, conf_matrix</CODE> 
+performs bounds checking by means of <CODE>assert()</CODE> statement.
+If, for example, array index is out of bounds, assertion will fail and
+program will be abnormally terminated. To avoid asserts overhead
+you should define <CODE>NDEBUG</CODE> macro (pass <CODE>-DNDEBUG</CODE> 
+options to the C++ compiler).<P>
+
+
+<H3><A NAME = "paslib.sets">Sets</A></H3>
+
+By default converter use single set type for all Pascal sets. 
+This set type can handle sets with card up to 256 elements
+(consequently size of set is 256/8 = 32 bytes). Following functions
+implement Pascal operations with sets: 
+
+<PRE>
+      boolean subset(set a, set b); /* if a is subset of b */
+      boolean inset(SetElemType elem, set s);
+      boolean equivalent(set a, set b); 
+      set     join(set a, set b);
+      set     difference(set a, set b);
+      set     intersect(set a, set b);
+</PRE>
+    
+There is a special constructor for set constants:  setof(). 
+This function takes varying number of arguments each of them
+is either set element or range of elements, defined by macro range(a,b). 
+List of elements should be  terminated with <CODE>eos</CODE> 
+(end of set) constant:
+
+<PRE>
+      s := [' ', '!', '?', '_', '0'..'9', 'a'..'z'];  
+
+    ==>
+
+      s = setof(' ', '!', '?', '_', range('0','9'), range('a','z'), eos); 
+</PRE>
+
+
+In C++ work with Pascal sets is encapsulated in <CODE>set_template</CODE>
+class. Instantiation of this class with constant <CODE>MAX_SET_CARD</CODE>
+as parameter is used as standard Pascal <CODE>set</CODE>. 
+Sets of enumerations are created by <CODE>set_of_enum(e)</CODE> macro:
+
+<PRE>
+typedef set_template&lt;MAX_SET_CARD&gt; set;
+
+#define set_of_enum(e) set_template&lt;last_##e&gt;
+</PRE>
+
+
+<H3><A NAME = "paslib.math">Mathematical functions</A></H3>
+
+This is one to one correspondence between Pascal and C mathematical 
+functions:<P> 
+
+<TABLE BORDER WIDTH=60%>
+<TR BGCOLOR="#A0A0A0"><TH>Pascal</TH>     <TH>C</TH></TR>
+<TR><TD>sin</TD>        <TD>sin</TD></TR>
+<TR><TD>cos</TD>        <TD>cos</TD></TR>
+<TR><TD>tan</TD>        <TD>tan</TD></TR>
+<TR><TD>arctan</TD>     <TD>atan</TD></TR>
+<TR><TD>ln</TD>         <TD>log</TD></TR>
+<TR><TD>sqrt</TD>       <TD>sqrt</TD></TR>
+</TABLE><P>
+
+Functions <CODE>trunc(), pred(), succ(), bitsize(), odd(), chr(), ord()</CODE>
+are implemented by macros in the following way:         
+        
+<PRE>
+      #define trunc(x)  ((integer)(x))
+      #define pred(type,x) ((type)((x) - 1))
+      #define succ(type,x) ((type)((x) + 1))
+      #define bitsize(x) (sizeof(x)*8)
+      #define odd(x) ((x) & 1)
+      #define chr(n) ((char)(n))
+      #define ord(c) ((int)(unsigned char)(c))
+</PRE>
+
+Round function is implemented as 
+
+<PRE>
+                        trunc(x+0.5)   x &gt;= 0
+            round(x) = 
+                        trunc(x-0.5)   x &lt; 0
+</PRE>
+
+Pascal function <CODE>size(x)</CODE> is replaced with C operator 
+<CODE>sizeof(x)</CODE>. 
+ 
+
+<H3><A NAME = "paslib.io">Input/Output</A></H3>
+
+We use standard C io library to emulate Pascal input/output.
+Pascal file type is emulated by C macro file(r) which defines structure
+containing file descriptor and current record. There are following 
+fields in file descriptor: pointer to C FILE structure, file name, 
+last IO-operation error status, open mode, file status (and FAB pointer
+for OpenVMS system). Special macros are used for all Pascal
+file accessing procedures which scatter file structure fields
+and call corresponding functions. Bellow there is a table
+specifying mapping between Pascal functions, macros and C functions:<P>
+        
+<TABLE BORDER WIDTH="63%">
+<CAPTION>Mapping between Pascal and C I/O functions</CAPTION>  
+<TR BGCOLOR="#A0A0A0"><TH>Pascal</TH>     <TH>C macro</TH>     <TH>C function</TH></TR>
+<TR><TD>rewrite</TD>    <TD>rewrite</TD>     <TD>pio_rewrite_file</TD></TR>
+<TR><TD>reset</TD>      <TD>reset</TD>  <TD>pio_reset_file</TD></TR>
+<TR><TD>get</TD>        <TD>get</TD>    <TD>pio_get_record</TD></TR>
+<TR><TD>put</TD>        <TD>put</TD>    <TD>pio_put_record</TD></TR>
+<TR><TD>eof</TD>        <TD>eof</TD>    <TD>pio_check_end_of_file</TD></TR>
+<TR><TD>read</TD>       <TD>sread</TD>  <TD>pio_read_record  (1)</TD></TR>
+<TR><TD>write</TD>      <TD>swrite</TD> <TD>pio_write_record (1)</TD></TR>
+<TR><TD>close</TD>      <TD>close</TD>  <TD>pio_close</TD></TR>
+<TR><TD>seek</TD>       <TD>seek</TD>   <TD>pio_seek_file</TD></TR>
+<TR><TD>rename</TD>     <TD>rename</TD> <TD>pio_rename_file</TD></TR>
+<TR><TD>break</TD>      <TD>flush</TD>  <TD>pio_flush_file   (2)</TD></TR>
+<TR><TD>delete</TD>     <TD>delete_file</TD> <TD>pio_delete_file  (2)</TD></TR>
+<TR><TD>iostatus</TD>   <TD>iostatus</TD>  <TD>pio_iostatus     (2)</TD></TR>
+<TR><TD>ioerror</TD>    <TD>ioerror</TD>   <TD>pio_ioerror      (2) </TD></TR>
+<TR><TD>noioerror</TD>  <TD>noioerror</TD> <TD>pio_ignore_error (2)</TD></TR>
+<TR><TD>-</TD>          <TD>scopy</TD>  <TD>pio_copy_record  (3)</TD></TR>
+<TR><TD>-</TD>          <TD>access</TD> <TD>pio_access_recprd(3)</TD></TR>
+<TR><TD>-</TD>          <TD>store</TD>  <TD>pio_store_record (3)</TD></TR>
+</TABLE>                        
+
+<OL>                   
+<LI> read and write with first file parameter
+<LI> Oregon Pascal extensions         
+<LI> This macros are used for translation of some Pascal constructions.
+</OL>
+
+Let the following variable are defined: 
+
+<PRE>
+      type rec = record ... end;
+      var f, g : file of rec;  
+          r : rec;
+</PRE>
+
+Then translation translation for the following construction will be:
+
+<PRE>
+      r := f^;
+      f^ := r;
+      f^ := g^;
+
+    ==>
+
+      r = *access(f); 
+      store(f, r); 
+      scopy(f, g); 
+</PRE>
+
+    
+We use lazy evaluation strategy for implementing Pascal file access. 
+Current record is red from disc only when it is accessed. 
+To handle current state of current record two flags are used: 
+<CODE>fs_record_defined</CODE> and <CODE>fs_next_pos</CODE>. First flag is used
+to mark record which is either red from disk or was assigned
+a value. Flag <CODE>fs_next_pos</CODE> is set when pointer in file 
+is moved to position after current record. There is the 
+following invariant: flag <CODE>fs_next_pos</CODE> is set only when 
+flag <CODE>fs_record_defined</CODE> is set. A table below shows state
+of this flags after execution of some functions: <P>
+
+    
+<TABLE BORDER>
+<CAPTION>Flags settings</CAPTION>       
+<TR BGCOLOR="#A0A0A0"><TH>function</TH>      <TH>fs_next_pos</TH> <TH>fs_record_defined</TH></TR>
+<TR><TD>pio_rewrite_file</TD>  <TD>0</TD>       <TD>0</TD></TR>
+<TR><TD>pio_reset_file</TD>    <TD>0</TD>       <TD>0</TD></TR>
+<TR><TD>pio_get_record</TD>    <TD>0</TD>       <TD>0</TD></TR>
+<TR><TD>pio_put_record</TD>    <TD>0</TD>       <TD>0</TD></TR>
+<TR><TD>pio_read_record</TD>   <TD>0</TD>       <TD>0</TD></TR>
+<TR><TD>pio_write_record</TD>  <TD>0</TD>       <TD>0</TD></TR>
+<TR><TD>pio_seek_file</TD>     <TD>0</TD>       <TD>0</TD></TR>
+<TR><TD>pio_copy_record</TD>   <TD>0</TD>       <TD>0</TD></TR>
+<TR><TD>pio_access_record</TD> <TD>1</TD>       <TD>1</TD></TR>
+<TR><TD>pio_store_record</TD>  <TD>0</TD>       <TD>1</TD></TR>
+</TABLE><P>
+    
+Pascal write and read procedures working with text files are 
+replaced with <CODE>twrite</CODE> and <CODE>tread</CODE> C functions when 
+first parameter is file and <CODE>cwrite</CODE> and <CODE>cread</CODE> when 
+console input/output is used.
+This functions receive printf-like format string and varying
+number of arguments. Format string can include arbitrary text
+and format specifiers:<P>
+
+
+<TABLE BORDER>
+<CAPTION>Format specifiers for read and write operations</CAPTION>
+<TR BGCOLOR="#A0A0A0"><TH>type</TH>       <TH>read</TH>   <TH>write</TH></TR>
+
+<TR><TD>integer</TD>    <TD>%i</TD>     <TD>%i<P>
+                                            %&lt;width&gt;i</TD></TR>
+
+<TR><TD>real</TD>       <TD>%f</TD>     <TD>%f<P>
+                                            %&lt;width&gt;f<P>
+                                            %&lt;width&gt;.&lt;precision&gt;f</TD></TR>
+
+<TR><TD>char[]<P>(array of char)</TD> <TD>%s</TD>  <TD>%s<P>
+                                                       %&lt;width&gt;s</TD></TR>
+
+<TR><TD>char*<P>const ok := 'ok'<P> (zero terminated string)</TD>
+<TD>-</TD>
+<TD>%z<P>%&lt;width&gt;z</TD></TR>
+
+<TR><TD>short<P>unsigned short<P>[-32768..32767]<P>[0..65535]</TD>
+<TD>%W</TD> <TD>-</TD></TR>
+
+<TR><TD>char<P>unsigned char<P>[-128..127]<P>[0..255]</TD>
+<TD>%B</TD> <TD>-</TD></TR>
+</TABLE><P>
+
+
+where <B>&lt;<I>width</I>&gt;</B> and <B>&lt;<I>precision</I>&gt;</B> 
+is either literal specified in 
+format string either symbol <CODE>'*'</CODE>. In former case value of this 
+qualifiers is specified <EMP>AFTER</EMP> (unlike C) corresponding parameter:
+        
+<PRE>
+      write(x:5:2);        ==>        cwrite("%5.2f",x);
+      write(x:w:p);        ==>        cwrite("%*.*f",x,w,p);
+</PRE>
+          
+For symbols not preceding with <CODE>%</CODE> action performed 
+by read and write are:<P>
+
+<TABLE BORDER>
+<TR><TH>read</TH> <TH>write</TH></TR>
+<TR><TD>
+if character is <CODE>'\n'</CODE> then skip all input
+character until newline character is reached;<P>
+
+otherwise character is compared with next 
+input character and if not equal read operation fails</TD>
+
+<TD>just output character</TD></TR>
+</TABLE><P>
+                        
+To output <CODE>%</CODE> character this symbol should be included in the 
+format string twice.<P>
+ 
+Procedures <CODE>writeln()</CODE> and <CODE>readln()</CODE> are implemented 
+by the same functions but symbol <CODE>'\n'</CODE> is appended to the 
+formating string.<P>    
+
+Array arguments are passed to read and write function with low
+and high bound specified before array pointer: 
+
+<PRE>
+      procedure foo(str : packed array [1..100] of char); 
+      begin
+        writeln('str = ',str);
+      end;
+
+    ==> 
+        
+      void foo(char str[100]) { 
+        writec("str = %s\n", 1, 100, str); 
+      }
+</PRE>
+
+In C++ template class <CODE>file&lt;type&gt;</CODE> is used as wrapper
+for these C <CODE>pio_</CODE> functions. PtoC uses <CODE>streamio</CODE>
+like interface for converting Pascal IO operation in C++:
+
+<PRE>
+      type 
+        rec = record
+	  code : integer;
+	  name : array [1..10] of char;
+        end;
+      const
+        pi = 3.14;
+      var
+        f : file of rec;
+	r : rec;
+      begin
+        writeln('Hello world');
+	writeln('pi = ', pi:10:5);
+	write(f, r);
+	read(f, r);
+	r := f^;
+	f^ := r;
+	readln;
+      end.
+
+  ==>
+  
+      struct rec { 
+          integer code;
+          array<1,10,char> name;
+      };
+      const real pi = 3.14;
+      file<rec> f;
+      rec r;
+
+      main() 
+      { 
+        output << "Hello world" << NL;
+	output << "pi = " << format(pi, 10, 5) << NL;
+        f << r;
+        f >> r;
+        r = *f; 
+        store(f, r);
+	input >> NL;
+	return EXOT_SUCCESS;
+     }  
+</PRE><P>
+
+The following table summirize rules of translation Pascal IO constructions 
+to C++:
+
+<TABLE BORDER>
+<TR BGCOLOR="#A0A0A0"><TH>Pascal construction</TH>   <TH>C++ construction</TH></TR>
+
+<TR><TD ALIGN="LEFT">
+    write(expr1, expr2, ..., exprN)<P>
+    writeln(expr1, ..., exprN)<P>
+    write(f, expr1, ..., exprN)<P>
+    writeln(f, expr1, ..., exprN)</TD>
+<TD ALIGN="LEFT">
+    output << expr1 << expr2 << ... << exprN;<P>
+    output << expr1 << ... << exprN << NL;<P>
+    f << expr1 << ... << exprN;<P>
+    f << expr1 << ... << exprN << NL;</TD>
+</TR>
+<TR><TD ALIGN="LEFT">
+    read(lvalue1, lvalue2, ..., lvalueN)<P>
+    readln(lvalue1, ..., lvalueN)<P>
+    read(f, lvalue1, ..., lvalueN)<P>
+    readln(f, lvalue1, ..., lvalueN)</TD>
+<TD ALIGN="LEFT">
+    input >> lvalue1 >> lvalue2 >> ... >> lvalueN;<P>
+    input >> lvalue1 >> ... >> lvalueN >> NL;<P>
+    f >> lvalue1 >> ... >> lvalueN;<P>
+    f >> lvalue1 >> ... >> lvalueN >> NL;<P>
+</TR>
+<TR><TD ALIGN="LEFT">
+    write(string_expr:width)<P>
+    write(integer_expr:width)<P>
+    write(real_expr:width:precision)</TD>
+<TD ALIGN="LEFT">
+    output << format(string_expr, width);<P>
+    output << format(integer_expr, width);<P>
+    output << format(real_expr, width, precision);</TD>
+</TR>   
+<TR>
+<TD ALIGN="LEFT">file_variable^</TD>
+<TD ALIGN="LEFT">*file_variable</TD>
+</TR>
+<TR>
+<TD ALIGN="LEFT">file_variable^ := expr</TD>
+<TD ALIGN="LEFT">store(file_variable, expr);</TD>
+</TR>
+</TABLE>
+
+<H2><A NAME = "winbgi">BGI emulation</A></H2>
+
+PtoC now provides emulation libraries of Borland Graphics Interface (BGI) 
+for X-Windows and Windows-95/NT are included in this distribution 
+(BGI emulators can be also used without converter for C programs using BGI).
+I found source code of BGI emulator for X-Windows in Internet, 
+so I only have to do some changes and fix few bugs.
+Unfortunately this emulation library is not fully completed and 
+tested, also not all BGI functionality is supported. 
+And BGI emulator for MS-Windows I created myself (in Internet I found
+only commercial products). I called this library WinBGI.<P> 
+
+WinBGI strictly emulates most of BGI functions
+(except using of non-standard drivers). Also may be mapping of fonts
+is not correct. But as far as sources are also available, you can 
+easily customize them for your application. Unfortunately direct work
+with palette colors (setpalette, setbkcolor, write and putimage modes other 
+than COPYPUT) is supported only for 256-colors Windows mode.
+Also I have used this library for only few programs (bgidemo is
+certainly the most complex one) so I can't guaranty that all
+functions always work properly. I am also sorry for the lack of 
+parameter checking in WinBGI functions. So summarizing all above:<P>
+
+WinBGI advantages: 
+<OL>
+<LI> Allows you to run your old Turbo-C DOS applications in 32-bit mode
+     in normal windows. So you can easily overcome all 64Kb limitations
+     and getting 32-bit application by simple recompilation !
+
+<LI> Graphics is much faster with WinBGI (because native Win32 API
+     is used with minimal emulation overhead) in comparison with
+     original application running in DOS session under Windows 
+     (especially at my PPro-200 with NT). 
+     Also it seems to me that some things (like switching of graphical 
+     pages) are not working properly in DOS mode under Windows-NT.
+
+<LI> You can use WinBGI for creating non-event driven graphical applications.
+     For example if you want to write a program which only draws
+     graphic of functions, it is not so easy to do with windows.
+     You have to handle REDRAW messages, create timers to output next
+     graphics iteration... It seems to me that BGI is much more 
+     comfortable for this purposes: you just draw lines or points and do
+     not worry about window system at all...
+</OL><P>
+
+WinBGI shortcomings:
+<OL>
+<LI> Handling of Windows events is done in BGI functions 
+     <CODE>kbhit(). getch() and delay()</CODE>. 
+     So to make your application work properly You should
+     periodically call one of this functions. For example,  
+     the following program will not work with WinBGI:
+
+<PRE>
+        initgraph(&hd, &hm, NULL);
+        while (1) putpixel(random(640), random(480), random(16));
+        closegraph();
+  
+</PRE>
+Correct version of this program is:
+<PRE>
+        initgraph(&hd, &hm, NULL);
+        while (!kbhit()) putpixel(random(640), random(480), random(16));
+        closegraph();
+</PRE>
+<LI> To handle REDRAW message WinBGI has to perform drawing twice:  
+     at the screen and in the pixmap which can be used while redrawing.
+     I find that speed of drawing is still very fast but if you want to 
+     make it even faster you can assign 0 to global variable 
+     <CODE>bgiemu_handle_redraw</CODE>. In this case drawing is performed 
+     only at the screen but correct redrawing is not possible. 
+     If your application makes some kind of animation (constantly updates 
+     pictures at the screen) then may be storing image in the pixmap is not 
+     necessary, because your application will draw new picture instead of old 
+     one. 
+
+<LI> Work with palette is possible only in 256-colors Windows mode. 
+     I don't know how to solve this problem with Win32 
+     (I am not going to use DirectX).  
+
+<LI> It is still not so good tested and not all BGI functionality 
+     is precisely simulated. I am hope that current version of WinBGI
+     can satisfy requirements of most simple Turbo-C graphics applications. 
+</OL><P>
+
+By default WinBGI emulates VGA device with VGAHI (640x480) mode.
+Default mode parameter can be changed using <CODE>bgiemu_default_mode</CODE>
+variable. Special new mode VGAMAX is supported by WinBGI, causing
+creation of maximized window. To use this mode you should either
+change value of <CODE>bgiemu_default_mode</CODE> variable to 
+<CODE>VGAMAX</CODE> and specify <CODE>DETECT</CODE> device type, 
+or specify <CODE>VGA</CODE> device type and <CODE>VGAMAX</CODE> mode.<P>
+
+I am using Microsoft Visual C++ 5.0 to compile this application.
+To build library and BGIDEMO example you should only issue command 
+<CODE>nmake -f makefile.mvc</CODE>. 
+As a result you will have library <CODE>winbgi.lib</CODE>, 
+header file <CODE>graphics.h</CODE>.<P>
+
+
+<H2><A NAME = "structure">Structure of converter</A></H2>
+
+Below there is a short description of converter itself: 
+
+<UL>
+<LI> Scanner <A HREF = "lex.l">"lex.l"</A> is written using LEX. 
+     It produces list of all tokens including comments and white spaces.
+
+<LI> Parser <A HREF = "parser.y">parser.y</A> is written using YACC. 
+     Parser takes from list of tokens created by scanner all tokens except 
+     separators and creates object tree (classes are described in 
+     <A HREF = "trnod.h">trnod.h</A> which nodes contain references to tokens.
+     All names are inserted in global name table 
+     <A HREF = "nmtbl.h">nmtbl.h</A>. 
+
+<LI> Attributes are assigned to tree nodes by executing virtual method
+     <CODE>attrib()</CODE> <A HREF = "trnod.cxx">trnod.cxx</A>.
+     At this step symbol table <A HREF = "bring.h">bring.h</A> is created. 
+     Classes for type expressions are implemented in 
+     <A HREF = "tpexpr.cxx">tpexpr.cxx</A>.
+  
+<LI> Virtual method <CODE>translate()</CODE> is recursively called for all 
+     nodes in tree <A HREF = "trnod.cxx">trnod.cxx</A>. This methods perform 
+     conversion of input tokens (modify value, swap tokens, add new tokens) 
+     and as a result prepare output list of tokens. 
+
+<LI> All tokens from output list of tokens are printed to target file
+     with intelligent preserving position and layout of tokens 
+     <A HREF = "token.cxx">token.cxx</A>.  
+</UL><P>
+
+
+<H2><A NAME = "cganal">Nested functions and call graph analysis</A></H2>
+
+Converter can perform global call graph analyze in order to recognize 
+non-recursive functions and making static variables of such functions which
+are accessed by nested functions. If you specify <CODE>-analyze</CODE> option, 
+converter appends to file "call.grp" information about callers and callees. 
+After conversion of all files special utility <CODE>cganal</CODE> can be used
+to produced transitive closure of call graph and output list
+of recursive procedures in file "recur.prc". When you run converter 
+once again (with <CODE>-analyze</CODE> option) information from this file is 
+used to mark recursive procedures. 
+This approach greatly increase readability of program as no extra
+arguments need to be passed to nested functions.<P>
+
+
+<H2><A NAME = "name conflicts">Resolving name conflicts</A></H2>
+
+Resolving of names conflicts is controlled by file 
+<A HREF = "ptoc.cfg">ptoc.cfg</A> which is loaded by converter at startup. 
+This file specifies reserved symbols (C and C++ keywords), 
+names of functions from C standard library, names of macros defined by 
+converter, and mapping of names for some functions from pascal runtime.<P>
+
+
+<H2><A NAME = "C parameters">Passing parameters in C</A></H2>
+
+When converter produces C code, it doesn't copy arrays which are
+passed by value. Instead of this converter declare such arrays as 
+<CODE>const</CODE>, so any attempt to modify contents of such array cause 
+C compiler warning or error. It seems to me, that there are usually few places 
+in program where procedure modifies array which is passed by value.
+As a rule absence of VAR qualifier means that procedure only access 
+but not modify contents of the array. So we decide that efficient generation 
+of  this most common is more important then some amount of manual job 
+which is necessary to correct places where array has to be copied. 
+You should only rename formal parameter, create local variable with original
+name and copy value to it: 
+
+<PRE>
+        foo(str20 const name) { 
+            ...
+        }  
+
+=>
+
+        foo(str20 name_) { 
+            str20 name;
+
+            memcpy(name, name_, sizeof(name));
+            ...
+        }
+</PRE>
+
+<H2><A NAME = "C++ parameters">Passing parameters in C++</A></H2>
+
+As far as Pascal arrays are represented in C++ by special class, 
+there is no problem with array parameter passing as in C. 
+But as far as arrays passed by value are very rarely modified
+in called procedure, PtoC optimizes passing of arrays by value.
+If array parameter, passed by value, is not changed in procedure
+and is not passed by reference to another procedure, then PtoC 
+doesn't create copy of the array. This optimization can be
+suppressed by <CODE>-copy</CODE> option. When this option is specified, 
+PtoC strictly emulates Pascal call semantic for arrays passed by value
+(always create copy of the array). I don't know reasons of using this 
+options.<P>
+
+PtoC implements conformant array by template class
+<CODE>conf_array</CODE>. PtoC uses special macro 
+<CODE>copy_conformant_array()</CODE> to create copy of conformant array 
+passed by value when this array is modified within procedure or
+option <CODE>-copy</CODE> is specified. This macro uses
+<CODE>alloca()</CODE> function from C library, which allocates space from 
+the system stack.<P>
+
+PtoC uses macro <CODE>as(type, string-constant)</CODE> for passing
+string constant to the parameter of <CODE>array of char</CODE> type.
+As far as PtoC wants to make it possible to initialize arrays 
+by means of C aggregate construction <CODE>{...}</CODE>, it is impossible 
+for array class to have constructor. That is why macro <CODE>as()</CODE>,
+which calls method <CODE>array::make(char const* str)</CODE>, is used for
+passing string constant as parameter. If size of string constant is less
+than size of target parameter, then string is padded with spaces. 
+If size of string constant is greater than size of target parameter, then 
+string is truncated to the size of parameter.<P>
+
+
+<H2><A NAME = "C functions">Calling of C functions</A></H2>
+
+Sometimes C functions need to be called from Pascal code. 
+Sun Pascal has special "<CODE>EXTERNAL C</CODE>" qualifier for C procedures
+called from Pascal. PtoC recognize this qualifier and treat it as
+C (not C++) function declaration. There are some specific items 
+of conversion of declarations and calls of such functions:
+
+<UL>
+<LI><B>Zero terminated strings.</B> 
+Many C functions accept zero terminated strings 
+parameters. As far as character arrays in Pascal are not zero terminated,
+some conversion of string should be done. PtoC provides function 
+<CODE>lpsz()</CODE>, which copies characters from Pascal array to internal 
+static cyclic buffer and appends them with <CODE>'\0'</CODE> symbol. 
+Passing of string literal requires no 
+conversion. Turbo Pascal <CODE>string</CODE> type can be implicitly converted
+to zero terminated string without calling <CODE>lpsz()</CODE> method.
+
+<LI><B>Variables passed by reference.</B> 
+When conversion to C++ is used, formal parameters declared with <CODE>VAR</CODE>
+keyword are translated to C++ reference variables. So no explicit operation
+to take address of actual parameter is required. But as far as there are no 
+references in C, references should be replaced with pointers and
+explicit operation <CODE>"&"</CODE> is needed for actual parameters.
+
+<LI><B>Array passing</B>.
+Arrays in C are treated as pointers. When C++ is used as target language and
+function is declared with <CODE>"EXTERNAL C"</CODE> qualifier, formal
+parameter of such function belonging to array type are translated to
+pointer of the array element type. Actual parameters are passed by means
+of <CODE>body()</CODE> method, which returns pointer to the array elements.
+</UL>
+
+The following examples illustrate these items:
+
+<PRE>
+type smallstr = array [1..64] of char;
+
+procedure foo(var x : integer; a : smallstr; b : zero_terminated_string); 
+external c; 
+
+var 
+   i : integer;
+   s : smallstr;
+begin
+   foo(i, s, s);
+   foo(i, 'abc', 'xyz');
+end.
+
+----------------------------------------------
+
+typedef array&lt;1,64,char&gt; smallstr;
+
+extern "C" void foo(integer* x, char*  a, char*  b);  
+
+int main()
+{
+   integer i;
+   smallstr s;
+   
+   foo(&i, s.body(), lpsz(s));
+   foo(&i, "abc", "xyz");
+   return EXIT_SUCCESS;
+}
+</PRE>
+
+
+<H2><A NAME = "assignment">Array assignments</A></H2>
+
+Some C++ compilers don't allow classes with any assignment operators 
+to be members of unions (for correct implementation it is only
+necessary that such classes should not redefine DEFAULT assignment operator).
+As far as arrays can be members of variant components in Pascal, 
+converter can generate code without using of assignment operator for 
+string and character constants. If your specify <CODE>-assign</CODE> option, 
+converter will use <CODE>assign(str)</CODE> method of array instead of 
+<CODE>operator =</CODE> for assignment of string and character constants to 
+array. But PtoC still use default <CODE>operator=</CODE> generated by compiler
+for assignment of one array to another. To compile code produced
+with <CODE>-assign</CODE> option, pass <CODE>-DNO_ARRAY_ASSIGN_OPERATOR</CODE> 
+option to C++ compiler.<P>
+
+PtoC translates assignment of string constant to variable of 
+fixed array type by means of <CODE>as(type, string-constant)</CODE> macro,
+which performs conversion of string constant to the type of destination
+variable. If size of string constant is less
+than the size of the destination variable, then string is padded with spaces.
+If size of string constant is greater than size of the destination variable, 
+then the string is truncated to the size of destination variable,<P>
+
+
+<H2><A NAME = "string">Conversion of Turbo Pascal strings</A></H2>
+
+For conversion of Turbo Pascal classes <CODE>string</CODE> and 
+<CODE>varying_string</CODE> were designed to represent correspondent 
+Pascal types. This classes
+have constructors and assignment operators and so they can not
+be initialized using C aggregates notation {} and can not be used
+as components of unions (GCC allows to initialize classes with constructors
+with {}). To avoid this problem either manually replace such places 
+with C arrays or use option <CODE>-cstring</CODE> of compiler. 
+When this option is set converter replaces type of string 
+component of records or arrays with C pointer to zero terminated string
+<CODE>const char*</CODE>. This approach works well only when this types are
+used to declare constants.<P>
+
+
+<H2><A NAME = "porting">Some porting problems</A></H2>
+
+<H3><A NAME = "integer">Representation of integer type</A></H3>
+
+When your are porting application from 16-bit architecture platform
+you may want to preserve integer size (2 bytes). In this case
+you can face with two problems: one is that pointers will not
+more fit into such integers. Converter can't help your in this
+case. You should change types of some variables and records fields. 
+And second problem is less obvious. In language C <CODE>short</CODE> and 
+<CODE>char</CODE> operands are converted to <CODE>int</CODE> type before 
+operation takes place. 
+So if you you compare for equality variables of signed and unsigned type 
+declared in Pascal as  
+
+<PRE>
+      type
+        word : -32768..32767
+        uword : 0..65535
+      var
+        v1 : word;
+        v2 : uword;
+</PRE>
+
+containing the same value (for example 40000) then result will be 
+false (unlike original application) ! 
+This is because variable with signed type will be 
+converted to integer with sign extension while variable with unsigned
+type - without sign extension. To help to deal with this problem
+converter provides option <CODE>-unsigned</CODE>, which force converter to 
+insert explicit type conversion in such operations. Lets look at the
+translation the following Pascal construction with and without
+<CODE>-unsigned</CODE> option:<P>
+
+<TABLE BORDER>
+<TR BGCOLOR="#A0A0A0"><TH>Pascal</TH>   
+<TH>C without <CODE>-unsigned</CODE></TH>
+<TH>C with <CODE>-unsigned</CODE></TH></TR>
+<TR><TD>if v1 = v2 then ...</TD>
+    <TD>if (v1 == v2) ...</TD>
+    <TD>if ((uword)v1 == v2) ...</TD>
+</TABLE><P>
+
+It is not recommended to use 2-byte C types for representing 
+INTEGER and WORD Turbo Pascal types, because structures and functions 
+of BGI emulation library deal with original C <CODE>int</CODE> type.
+Also I see no much sense in using short types for converted
+Turbo Pascal applications because in this case you can not receive benefits 
+of 32-bit architecture, it is better to run original application.<P>
+
+
+<H3><A NAME = "set">Implementation of Pascal sets</A></H3>
+
+Sometimes it is necessary to preserve original size of data structure.
+For example if structure is mapped to another structure by means of union
+(record with variants in Pascal) or is extracted from file. There are 
+two options in converter which can help you in this case. First 
+option is <CODE>-intset</CODE>, which order converter to generate short sets
+(2 or 4 bytes) for sets of enumeration types, Operations with 
+short sets are implemented by macros using bit arithmetic. 
+(so they are significantly faster than operations with universal sets). 
+Disadvantage of using short sets is that adding elements to enumeration
+may cause problems in future.<P> 
+
+<H3><A NAME = "enum">Enumeration types</A></H3>
+
+And another option is <CODE>-smallenum</CODE>. 
+The problem is that <CODE>enum</CODE> type in C is treated by many compilers 
+as integers and there are no ways to make compiler use less bytes for their 
+representation. When you specify option <CODE>-smallenum</CODE> converter 
+replaces original enumeration type definition with 
+<CODE>unsigned char</CODE> or <CODE>unsigned short</CODE>
+definitions according to number of elements in enumeration. So construction
+
+<PRE>
+        colors = (red, green, blue);
+</PRE>
+
+will be translated to 
+
+<PRE>
+        typedef unsigned char colors;
+        enum {red, green, blue};        
+</PRE>
+
+Size of <CODE>colors</CODE> type will be 1. 
+And without <CODE>-smallenum</CODE> size of <CODE>colors</CODE>
+type depends on compiler and usually will be equal to the
+size of integer (4): 
+
+<PRE>
+        enum colors {red, green, blue};        
+</PRE>
+
+
+
+<H2><A NAME = "style">Style of converted sources</A></H2>
+
+As was mentioned above converter tries to preserve original
+indentation of converted sources. But if Pascal sources are not properly
+aligned you can reformat produced C code using some indentation
+utility, for example GNU indent, which is freely distributed 
+(GNU indent has one interesting bug: it fails to work with 
+files with empty comments <CODE>/**/</CODE> which are produced from popular 
+Pascal <CODE>{}</CODE> comments. To avoid this problem just replace such 
+comments with <CODE>/* */</CODE> or something else).<P> 
+
+
+
+<H2><A NAME = "modules">Includes in ANSII Pascal</A></H2>
+
+PtoC supports %include operator (used in Oregon Pascal).
+This operator works like C #include directive, performing text substitution.
+This operator can be used in one of the following forms:
+
+<PRE>
+%include file             { "file.pas" will be included }
+%include '../../file.inc' { "../../file.inc" will be included }
+%include file.con ;       { "file.con" will be included }
+</PRE>
+
+The statements above will be converted to
+
+<PRE>
+#include "file.h"
+#include "../../file_inc.h"
+#include "file_con.h"
+</PRE>
+
+If several files include the file with variables declarations, 
+then this variables will be multiple defined. This problem
+can be solved either by passing option to linker to merge symbols
+with the name (most linkers have such option), either by using
+<CODE>-extern</CODE> option. Specifying <CODE>-extern</CODE> option tells 
+the converter to prepend each variable declaration in included file by 
+<CODE>EXTERN</CODE> qualifier. <CODE>EXTERN</CODE> is defined as 
+<CODE>extern</CODE> in ptoc.h and is redefined to <CODE>""</CODE> 
+(empty string) if:<P> 
+
+<OL>
+<LI> included file name without extension is the same as name of 
+     converted file without extension
+<LI> included file name extension is ".var"
+</OL>
+
+
+<H2><A NAME = "options">PtoC options</A></H2>
+
+<DL>
+<DT>-I [.]<DD>      
+Include path (colon separated directory list). PtoC will search for included
+Pascal files in all specified directories.
+
+<DT>-in<DD>         
+Input Pascal file. Exactly one input file should be specified for PtoC.
+Keyword <CODE>-in</CODE> can be skipped if name of the file doesn't start
+with minus sign. 
+
+<DT>-out<DD>        
+Name of output C/C++ file. If output file name is not specified, PtoC
+will creates file with the same name as source Pascal file with extension
+replaced with ".cxx" (or with one specified by <CODE>-suf</CODE> option).
+
+<DT>-suf [.cxx]<DD> 
+Output C/C++ file name suffix.
+
+
+<DT>-c<DD>          
+Translate into ANSI C. By default converter produce C++ output.
+
+<DT>-assign<DD>     
+Do not use assignment operators for array. Use method 
+<CODE>array::assign()</CODE> instead.
+See <A HREF = "#assignment">Array assignments</A>
+
+<DT>-analyze<DD>
+Analyze call graph to find non-recursive functions.
+Makes <CODE>static</CODE> all variables from non-recursive functions, 
+which are accessed from nested functions. 
+See <A HREF = "#cganal">Nested functions and call graph analysis</A>
+
+<DT>-intset<DD>
+Use integer types for short sets of enumerations.
+See <A HREF = "#set">Implementation of Pascal sets</A>
+
+<DT>-init<DD>
+Call pio_initialize() function from main(). Invocation of this function
+performs initialization of Pascal runtime library structures. 
+This functions must be called in VMS and for Turbo Pascal if ParamStr
+or ExitProc variables are used.
+
+<DT>-smallenum<DD>
+Use for enumerated types as small bytes as possible.
+See <A HREF = "#enum">Enumeration types</A>
+
+<DT>-unsigned<DD>
+Generate correct code for sign/unsigned comparisons when application
+is ported from 16-bit architecture to 32/64 bit platform with
+preserving size of integer type (2 bytes).
+See <A HREF = "#integer">Representation of integer types</A>
+
+<DT>-h<DD>          
+Output only not existed header files. 
+By default PtoC performs conversion and output of all included files.
+This option tells PtoC not to output existed files.
+
+<DT>-turbo<DD>      
+Recognize Turbo Pascal extensions. 
+
+<DT>-cstring<DD>    
+Use <CODE>char*</CODE> type for string fields in records and arrays.
+
+<DT>-nological<DD>  
+Use <CODE>|</CODE> and <CODE>&</CODE> instead of <CODE>||</CODE> and 
+<CODE>&&</CODE> for boolean operations.
+
+<DT>-extern<DD>     
+Declare all variables from included files with <CODE>EXTERN</CODE> qualifier.
+
+<DT>-preserve<DD>   
+Preserve case of identifiers.
+By default PtoC translates all names to lowercase. If you prefer
+to preserve original style of using uppercase and lowercase
+letters, then use this option. 
+
+<DT>-nested<DD>     
+Nested comments. Do not mix <CODE>(* *)</CODE> and <CODE>{ }</CODE> comments.
+By default PtoC consider <CODE>(* ... }</CODE> as valid comment.
+Setting this option makes it possible to enclose one type of comments
+insize another one: <CODE>(* outside comment { inside comment } *)</CODE>.
+This rule is the same as in Turbo Pascal, so
+this option is implicitly set by <CODE>-turbo</CODE> option.
+
+<DT>-copy<DD>
+This option is meaningful only for C++ conversion. When this option is set,
+PtoC strictly emulates Pascal call semantic for arrays passed by value
+(always create array copy). By default PtoC optimizes passing of array
+parameter by value. Array parameter is copied only if it is changed 
+within procedure or it is passed by reference to another procedure. 
+See <A HREF = "#C++ parameters">Passing parameters in C++</A>
+ 
+<DT>-pascall []<DD> 
+Specify modifier (pascal, WINAPI...) for converted functions.
+
+<DT>-comment_tags<DD> 
+Place in comments tags of Pascal variant records. By default 
+PtoC just skip this tags and doesn't output them to C file.
+in comments tags of Pascal variant records. By default 
+PtoC just skip this tags and doesn't output them to C file.
+
+<DT>-namespace<DD> 
+Place Turbo Pascal units in separate namespaces:
+<PRE>
+unit foo;
+interface
+var 
+    a : integer;
+implementation
+end.
+---------------------------------------------
+namespace foo { 
+    integer a;
+}
+unsing namespace foo;
+</PRE>
+</DL><P>
+
+
+<H2><A NAME = "bugs">Known bugs</A></H2>
+
+<UL>
+<LI> Arrays with dimension greater than 2 should be written in form
+<PRE>
+        array [l1..h1] of array [l2..h2] of array [l3..h3] of something
+     instead of 
+        array [l1..h1,l2..h2,l3..h3] of something
+</PRE>
+
+<LI> Converter translates ranges in case statement in the following manner: 
+
+<PRE>
+     case x of                          switch (x) {
+       'a'..'z':           =>             case RANGE_26('a','z'): 
+       0..9:                              case RANGE_10(0,9): 
+       -100..100:                         case -100 ... 100;  
+       low..high:                         case low ... high;  
+     end;                               } 
+</PRE>
+
+   Unfortunately '...' C extension is supported only by GCC. 
+
+<LI> <CODE>CHAR</CODE> type in Turbo Pascal is unsigned and in most 
+     implementations of C/C++ by default is signed. To avoid the problem 
+     with comparison of chars with code greater than 127 use option of 
+     C++ compiler forcing <CODE>char</CODE> type to be unsigned. 
+
+<LI> The following Turbo Pascal contructions are not recognized by PtoC: 
+     segment prefixes (<CODE>$0000:$1000</CODE>), explicit address specification
+     for variable (<CODE>ABSOLUTE</CODE> statement), inline assembler, 
+     <CODE>INTERRUPT</CODE> quilifier in function or procedure definition.
+     Only the following Turbo Pascal compiler directives are recognized by PtoC:
+     <CODE>$I, $IFDEF, $ELSE, $ENDIF, $IFNDEF, $DEFINE, $IFOPT</CODE>. Other are
+     treated as normal comments. 
+</OL>
+
+<H2><A NAME = "distribution">PtoC distribution</A></H2>
+
+PtoC is shareware and is distributed in the hope to be useful. 
+Your are free to use this converter, modify the sources 
+and do with this converter everything else you want. 
+Also feel free to ask me any questions about the converter
+and BGI emulator for Windows. Shareware status doesn't mean 
+lack of support. I will do my best to fix all reported bugs
+and will help you to tune PtoC to fit your requirements.
+Also e-mail support is guaranteed.
+
+<HR>
+<P ALIGN="CENTER"><A HREF="http://www.garret.ru/~knizhnik">
+<B>Look for new version at my homepage</B></A><B> | </B>
+<A HREF="mailto:knizhnik@garret.ru">
+<B>E-mail me about bugs and problems</B></A></P>
+</BODY>
+</HTML>

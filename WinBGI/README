@@ -1,0 +1,86 @@
+This package contains emulation library of Borland Graphics Interface (BGI) 
+for Windows-95/NT. This library strictly emulates most of BGI functions
+(except using of non-standard drivers). Also may be mapping of fonts
+is not correct. But as far as sources are also available, you can 
+easily customize them for your application. Unfortunately direct work
+with palette colors (setpalette, setbkcolor, write and putimage modes other 
+than COPYPUT) is supported only for 256-colors Windows mode.
+Also I have used this library for only few programs (bgidemo is
+certainly the most complex one) so I can't guaranty that all
+functions always work properly. I am also sorry for the lack of 
+parameter checking in WinBGI functions. So summarizing all above:
+
+WinBGI advantages: 
+1) Allows you to run your old Turbo-C DOS applications in 32-bit mode
+   in normal windows. So you can easily overcome all 64Kb limitations
+   and getting 32-bit application by simple recompilation !
+
+2) Graphics is much faster with WinBGI (because native Win32 API
+   is used with minimal emulation overhead) in comparison with
+   original application running in DOS session under Windows 
+   (especially at my PPro-200 with NT). 
+   Also it seems to me that some things (like switching of graphical 
+   pages) are not working properly in DOS mode under Windows-NT.
+
+3) You can use WinBGI for creating non-event driven graphical applications.
+   For example if you want to write a program which only draws
+   graphic of functions, it is not so easy to do with windows.
+   You have to handle REDRAW messages, create timers to output next
+   graphics iteration... It seems to me that BGI is much more 
+   comfortable for this purposes: you just draw lines or points and do
+   not worry about window system at all...
+
+WinBGI shortcomings:
+1) Handling of Windows events is done in BGI functions kbhit(). getch() 
+   and delay(). So to make your application work properly You should
+   periodically call one of this functions. For example,  
+   the following program will not work with WinBGI:
+
+   	initgraph(&hd, &hm, NULL);
+   	while (1) putpixel(random(640), random(480), random(16));
+   	closegraph();
+  
+   Correct version of this program is:
+
+   	initgraph(&hd, &hm, NULL);
+   	while (!kbhit()) putpixel(random(640), random(480), random(16));
+   	closegraph();
+
+2) To handle REDRAW message WinBGI has to perform drawing twice:  
+   at the screen and in the pixmap which can be used while redrawing.
+   I find that speed of drawing is still very fast but if you want to 
+   make it even faster you can assign 0 to global variable 
+   "bgiemu_handle_redraw". In this case drawing is performed only at
+   the screen but correct redrawing is not possible. If your application
+   makes some kind of animation (constantly updates pictures at the screen) 
+   then may be storing image in the pixmap is not necessary, because your
+   application will draw new picture instead of old one. 
+
+3) Work with palettes is possible only in 256-colors Windows mode. 
+   I don't know how to solve this problem with Win32 
+   (I am not going to use DirectX).  
+
+4) It is still not so good tested and not all BGI functionality 
+   is precisely simulated. I am hope that current version of WinBGI
+   can satisfy requirements of most simple Turbo-C graphics applications. 
+
+By default WinBGI emulates VGA device with VGAHI (640x480) mode.
+Default mode parameter can be changed using "bgiemu_default_mode"
+variable. Special new mode VGAMAX is supported by WinBGI, causing
+creation of maximized window. To use this mode you should either
+change value of "bgiemu_default_mode" variable to VGAMAX and specify
+DETECT device type, or specify VGA device type and VGAMAX mode.
+
+I am using Microsoft Visual C++ 5.0 to compile this application.
+To build library and BGIDEMO example you should only issue command "nmake". 
+As a result you will have library "winbgi.lib", header file "graphics.h"
+which you can put in any place you want and bgidemo.exe - example of using 
+WinBGI with original Borland BGIDEMO sample from BCC 4.5, 
+
+
+WinBGI is shareware. You can do everything you want with this library. 
+Certainly I can give you absolutely no warranty but I will be glad
+to answer all your questions and fix bugs which you may be find in WinBGI...
+
+My e-mail address:
+knizhnik@cecmow.enet.dec.com

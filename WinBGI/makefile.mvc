@@ -1,0 +1,39 @@
+#
+# Constantin Knizhnik
+# Moscow Software Center
+# BGI for Windows
+#
+
+DEFINES = 
+CC = cl
+
+# Debug
+#CFLAGS=-c -Zi -W3 $(DEFINES)
+
+# Optimize
+CFLAGS=-c -Ox -Zi -W3 $(DEFINES)
+
+LD = cl
+LDOPT = -Zi
+#LDOPT =
+
+AR = lib
+
+LIB = ..\winbgi.lib
+
+
+all: $(LIB)
+
+winbgi.obj: winbgi.cxx graphics.h
+	$(CC) $(CFLAGS) winbgi.cxx
+
+$(LIB): winbgi.obj
+	$(AR) $(ARFLAGS) /OUT:$(LIB) winbgi.obj
+
+
+clean:
+        -del *.obj
+        -del *.ilk
+        -del *.zip
+	-del *.*~
+

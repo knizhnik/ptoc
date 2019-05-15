@@ -1,0 +1,1 @@
+ Time          fe          n1         Ln(Time)     Ln(fe)     Ln(n1)       fe^2

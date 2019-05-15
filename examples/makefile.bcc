@@ -1,0 +1,158 @@
+CC = bcc32 -O2 -v
+CPPC = bcc32 -P -O2 -v
+
+CGANAL = ..\cganal
+PTOC = ..\ptoc
+PTOC_LIB = ..\ptoc.lib
+BGI_LIB = ..\winbgi.lib
+GRAPH_LIB = 
+MATH_LIB = 
+
+EXE = hello_c.exe hellocxx.exe trinor.exe impact.exe war2.exe tpascal.exe \
+      set_c.exe set_cxx.exe lister.exe bgidemo.exe vibrkinp.exe vibrtabl.exe
+
+all: convert executable
+
+convert: hello.c hello.cxx impact.cxx war2.cxx test.c test.cxx \
+        trinor.cxx rename.cxx tpascal.cxx lister.cxx bgidemo.cxx vibrkinp.cxx \
+	vibrtabl.cxx
+
+executable: $(EXE)
+
+# Hello world
+
+hello.c: hello.pas
+	$(PTOC) -c -in hello.pas 
+
+hello.cxx: hello.pas
+        $(PTOC) -in hello.pas
+
+hello_c.exe: hello.c $(PTOC_LIB) 
+	$(CC) -I.. -ehello_c.exe hello.c $(PTOC_LIB)
+
+hellocxx.exe: hello.cxx $(PTOC_LIB)
+        $(CPPC) -I.. -ehellocxx.exe hello.cxx $(PTOC_LIB)
+
+#----------------------------------------------------------------
+# Graphic example: BGIDEMO
+#----------------------------------------------------------------
+
+bgidemo.cxx: bgidemo.pas
+	$(PTOC) -turbo -analyze -preserve -cstring -in bgidemo.pas
+
+bgidemo.exe: bgidemo.cxx $(PTOC_LIB) $(BGI_LIB)
+	$(CPPC) -K -I.. -DTURBO_PASCAL bgidemo.cxx $(PTOC_LIB) $(BGI_LIB) $(GRAPH_LIB) $(MATH_LIB)
+
+#----------------------------------------------------------------
+# Numeric programms using graphics
+#----------------------------------------------------------------
+
+vibrtabl.cxx: vibrtabl.pas
+	$(PTOC) -turbo -in vibrtabl.pas
+
+vibrtabl.exe: vibrtabl.cxx $(PTOC_LIB) $(BGI_LIB)
+	$(CPPC) -I.. -DTURBO_PASCAL vibrtabl.cxx $(PTOC_LIB) $(BGI_LIB) $(GRAPH_LIB) $(MATH_LIB)
+
+
+vibrkinp.cxx: vibrkinp.pas
+	$(PTOC) -turbo -in vibrkinp.pas
+
+vibrkinp.exe: vibrkinp.cxx $(PTOC_LIB) $(BGI_LIB)
+	$(CPPC) -I.. -DTURBO_PASCAL vibrkinp.cxx $(PTOC_LIB) $(BGI_LIB) $(GRAPH_LIB) $(MATH_LIB)
+
+
+#----------------------------------------------------------------
+# Some other non-graphics numeric programs for Turbo Pascal
+#----------------------------------------------------------------
+
+impact.cxx: impact.pas 
+	$(PTOC) -turbo -in impact.pas
+
+
+impact.exe: impact.cxx $(PTOC_LIB)
+	$(CPPC) -I.. -DTURBO_PASCAL impact.cxx $(PTOC_LIB) $(MATH_LIB)
+
+trinor.cxx: trinor.pas
+        $(PTOC) -turbo -in trinor.pas
+
+trinor.exe: trinor.cxx $(PTOC_LIB)
+        $(CPPC) -I.. -DTURBO_PASCAL trinor.cxx $(PTOC_LIB) $(MATH_LIB)
+
+
+war2.cxx: war2.pas
+	$(PTOC) -turbo -in war2.pas
+
+war2.exe: war2.cxx $(PTOC_LIB)
+	$(CPPC) -I.. -DTURBO_PASCAL war2.cxx $(PTOC_LIB) $(MATH_LIB)
+# This program reads data from files war2.txt, random.txt, coord.txt
+# and produce file xy2.txt. Your can compare this file with xy2orig.txt
+# produced by original Pascal program. 
+
+
+#-------------------------------------------------------------------
+# File from examples to Borland Pascal.
+#-------------------------------------------------------------------
+
+lister.cxx: lister.pas
+        $(PTOC) -turbo -in lister.pas
+
+printer.cxx: printer.pas
+        $(PTOC) -turbo -in printer.pas
+
+lister.exe: lister.cxx printer.cxx $(PTOC_LIB)
+        $(CPPC) -I.. -DTURBO_PASCAL lister.cxx printer.cxx $(PTOC_LIB) 
+
+#-------------------------------------------------------------------
+# Some tests for converter. This programms produce dummy output.
+#-------------------------------------------------------------------
+
+test.c: test.pas
+	del call.grp
+	$(PTOC) -c -analyze -smallenum -intset -in test.pas
+	$(CGANAL)	
+	$(PTOC) -c -analyze -smallenum -intset -in test.pas 
+# It is neccessary to run converter twice.
+# At first phase call graph of functions is constructed and
+# at second phase correct code is generated.
+
+test.cxx: test.pas
+	del call.grp
+	$(PTOC) -analyze -in test.pas
+	$(CGANAL)
+	$(PTOC) -analyze -in test.pas
+
+rename.cxx: rename.pas
+	$(PTOC) -in rename.pas
+
+set.cxx: set.pas
+	$(PTOC) -in set.pas
+
+set.c: set.pas
+	$(PTOC) -c -intset -in set.pas
+
+set_cxx.exe: set.cxx $(PTOC_LIB)
+	$(CPPC) -I.. -eset_cxx.exe set.cxx $(PTOC_LIB)
+
+set_c.exe: set.c $(PTOC_LIB)
+	$(CC) -I.. -eset_c.exe set.c $(PTOC_LIB)
+
+# Test for Turbo Pascal
+
+tpascal.cxx: tpascal.pas
+	$(PTOC)  -cstring -turbo -in tpascal.pas
+
+tpascal.exe: tpascal.cxx
+	$(CPPC) -I.. -DTURBO_PASCAL tpascal.cxx $(PTOC_LIB)
+
+
+
+clean:
+	del *.*~ 
+	del *.exe 
+	del *.obj
+        del *.pdb
+        del *.ilk
+        del call.grp 
+        del recur.prc
+	del polut2.err
+
