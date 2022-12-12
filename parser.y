@@ -386,8 +386,6 @@ statement: { $$ = new empty_node(curr_token->prev_relevant()); }
     | IF expr THEN statement { $$ = new if_node($1, $2, $3, $4); } 
     | IF expr THEN statement ELSE statement 
         { $$ = new if_node($1, $2, $3, $4, $5, $6); }
-    | IF expr THEN statement ';' ELSE statement 
-        { $$ = new if_node($1, $2, $3, $4, $6, $7); }
     | FOR IDENT LET expr TO expr DO statement 
         { $$ = new for_node($1, $2, $3, $4, $5, $6, $7, $8); }
     | WHILE expr DO statement { $$ = new while_node($1, $2, $3, $4); }

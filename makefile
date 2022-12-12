@@ -52,7 +52,7 @@ LIBS =  libptoc.a libXbgi.a
 DEFINES = 
 INCLUDES = -I.
 
-YACC =		bison -d -p zz 
+YACC =		bison -Hparser.h -o parser.cxx -p zz 
 LEX =		flex -i -F -8
 
 #
@@ -98,10 +98,8 @@ LIB_OBJS =      $(LIB_SRCS:.c=.o)
 
 $(OBJS) : $(INCS)
 
-parser.cxx parser.h : parser.y 
-		$(YACC) parser.y 
-		mv parser.tab.c parser.cxx
-		mv parser.tab.h parser.h
+parser.cxx parser.h : parser.y
+		$(YACC) parser.y
 
 lex.cxx : lex.l 
 		$(LEX) lex.l
