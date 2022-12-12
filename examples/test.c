@@ -61,18 +61,18 @@ struct {
 
 void recursive_proc();
 
-static void inner(integer* out)
+static integer out;
+
+static void inner()
 {
    i = (short_)(i);
-   *out = 0;
+   out = 0;
    recursive_proc();
 }    /* inner */
 
 void recursive_proc()
 {
-   integer out;
-
-   inner(&out);
+   inner();
 }
 
 
@@ -234,7 +234,7 @@ int main(int argc, const char* argv[])
     foo(str, 1, items(*foo(temp1, 1, items(str), str,str)), *foo(temp1, 1, items(str), str,str),*foo(temp2, 1, items(str), str,str)); 
     a[green] = 0377; 
     a[red] = 0xff00; 
-    a[blue] = 0; 
+    a[blue] = 0x3fc0; 
     arrcpy(str, "\"a*z\"'\"A*Z\""); 
     str[4] = '\'';  
     str[4] = '-';  

@@ -185,7 +185,7 @@ begin
     str := foo(foo(str,str),foo(str,str)); 
     a[green] := 8#377; 
     a[red] := 16#ff00; 
-    a[blue] := 77600000b; 
+    a[blue] := 11111111000000b; 
     str := '"a*z"''"A*Z"'; 
     str[5] := '''';  
     str[5] := '-';  
